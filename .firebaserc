@@ -1,0 +1,19 @@
+{
+  "projects": {
+    "default": "shahirizada-fresh-market",
+    "production": "shahirizada-fresh-market",
+    "test": "shahirizada-fresh-market"
+  },
+  "targets": {
+    "shahirizada-fresh-market": {
+      "hosting": {
+        "production": [
+          "shahirizada-fresh-market"
+        ],
+        "test": [
+          "test-shahirizada-meat-market"
+        ]
+      }
+    }
+  }
+}

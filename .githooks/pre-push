@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Pre-push hook to build project locally before allowing push
+# This ensures no build errors make it to production
+
+echo "🔨 Building project locally to check for errors..."
+
+# Run the build
+npm run build
+
+# Check if build was successful
+if [ $? -ne 0 ]; then
+  echo "❌ Build failed! Fix errors before pushing."
+  echo "💡 Run 'npm run build' to see the errors."
+  exit 1
+fi
+
+echo "✅ Build successful! Proceeding with push..."
+exit 0

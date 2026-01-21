@@ -1,0 +1,188 @@
+name: Deploy to Firebase Hosting
+
+on:
+  push:
+    branches:
+      - main
+      - test
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        type: choice
+        options:
+          - production
+          - test
+          - both
+
+jobs:
+  deploy-production:
+    name: Deploy Production (shahirizadameatmarket.com)
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.environment == 'production' || github.event.inputs.environment == 'both'))
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create production .env file
+        run: |
+          cat > .env.production << EOF
+          VITE_SUPABASE_URL=${{ secrets.PROD_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY=${{ secrets.PROD_SUPABASE_ANON_KEY }}
+          VITE_STRIPE_PUBLISHABLE_KEY=${{ secrets.PROD_STRIPE_PUBLISHABLE_KEY }}
+          VITE_STRIPE_SECRET_KEY=${{ secrets.PROD_STRIPE_SECRET_KEY }}
+          VITE_STRIPE_CONNECT_ACCOUNT_ID=${{ secrets.PROD_STRIPE_CONNECT_ACCOUNT_ID }}
+          VITE_UBER_CUSTOMER_ID=${{ secrets.PROD_UBER_CUSTOMER_ID }}
+          VITE_UBER_CLIENT_ID=${{ secrets.PROD_UBER_CLIENT_ID }}
+          VITE_UBER_CLIENT_SECRET=${{ secrets.PROD_UBER_CLIENT_SECRET }}
+          VITE_GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
+          VITE_INSTAGRAM_ACCESS_TOKEN=${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          VITE_ENV=production
+          VITE_SITE_URL=https://shahirizadameatmarket.com
+          EOF
+
+      - name: Build for production
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Generate version.json
+        run: node scripts/deploy.js
+
+      - name: Deploy to Firebase Hosting (Production)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHAHIRIZADA_FRESH_MARKET }}'
+          channelId: live
+          projectId: shahirizada-fresh-market
+          target: production
+        env:
+          FIREBASE_CLI_EXPERIMENTS: webframeworks
+
+  deploy-test:
+    name: Deploy Test (test.shahirizadameatmarket.com)
+    runs-on: ubuntu-latest
+    if: |
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/test' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.environment == 'test' || github.event.inputs.environment == 'both'))
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref == 'refs/heads/test' && 'test' || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create test .env file
+        run: |
+          cat > .env.production << EOF
+          VITE_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}
+          VITE_STRIPE_PUBLISHABLE_KEY=${{ secrets.TEST_STRIPE_PUBLISHABLE_KEY }}
+          VITE_STRIPE_SECRET_KEY=${{ secrets.TEST_STRIPE_SECRET_KEY }}
+          VITE_STRIPE_CONNECT_ACCOUNT_ID=${{ secrets.TEST_STRIPE_CONNECT_ACCOUNT_ID }}
+          VITE_UBER_CUSTOMER_ID=${{ secrets.TEST_UBER_CUSTOMER_ID }}
+          VITE_UBER_CLIENT_ID=${{ secrets.TEST_UBER_CLIENT_ID }}
+          VITE_UBER_CLIENT_SECRET=${{ secrets.TEST_UBER_CLIENT_SECRET }}
+          VITE_GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
+          VITE_INSTAGRAM_ACCESS_TOKEN=${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          VITE_ENV=test
+          VITE_SITE_URL=https://test.shahirizadameatmarket.com
+          EOF
+
+      - name: Build for test
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Generate version.json
+        run: node scripts/deploy.js
+
+      - name: Deploy to Firebase Hosting (Test)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHAHIRIZADA_FRESH_MARKET }}'
+          channelId: live
+          projectId: shahirizada-fresh-market
+          target: test
+        env:
+          FIREBASE_CLI_EXPERIMENTS: webframeworks
+
+  deploy-preview:
+    name: Deploy PR Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create preview .env file
+        run: |
+          cat > .env.production << EOF
+          VITE_SUPABASE_URL=${{ secrets.TEST_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY=${{ secrets.TEST_SUPABASE_ANON_KEY }}
+          VITE_STRIPE_PUBLISHABLE_KEY=${{ secrets.TEST_STRIPE_PUBLISHABLE_KEY }}
+          VITE_STRIPE_SECRET_KEY=${{ secrets.TEST_STRIPE_SECRET_KEY }}
+          VITE_STRIPE_CONNECT_ACCOUNT_ID=${{ secrets.TEST_STRIPE_CONNECT_ACCOUNT_ID }}
+          VITE_UBER_CUSTOMER_ID=${{ secrets.TEST_UBER_CUSTOMER_ID }}
+          VITE_UBER_CLIENT_ID=${{ secrets.TEST_UBER_CLIENT_ID }}
+          VITE_UBER_CLIENT_SECRET=${{ secrets.TEST_UBER_CLIENT_SECRET }}
+          VITE_GOOGLE_MAPS_API_KEY=${{ secrets.GOOGLE_MAPS_API_KEY }}
+          VITE_INSTAGRAM_ACCESS_TOKEN=${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          VITE_ENV=preview
+          VITE_SITE_URL=https://test.shahirizadameatmarket.com
+          EOF
+
+      - name: Build for preview
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Generate version.json
+        run: node scripts/deploy.js
+
+      - name: Deploy Preview to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_SHAHIRIZADA_FRESH_MARKET }}'
+          projectId: shahirizada-fresh-market
+        env:
+          FIREBASE_CLI_EXPERIMENTS: webframeworks
